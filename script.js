@@ -1,332 +1,192 @@
 
-"use strict";
+const tabuleiro = document.getElementById("tabuleiro");
+const entrada = document.getElementById("entrada");
+const formulario = document.getElementById("formulario");
+const enviar = document.getElementById("enviar");
+const novoJogo = document.getElementById("novoJogo");
+const mensagem = document.getElementById("mensagem");
 
-const tamanho = 15;
+const maxTentativas = 6;
 
-const bancoPalavras = [
-  "GATO", "CACHORRO", "COELHO", "CAVALO", "TARTARUGA",
-  "LEAO", "TIGRE", "MACACO", "ELEFANTE", "GIRAFA",
-  "ZEBRA", "URSO", "RAPOSA", "LOBO", "PANDA",
-  "CASA", "ESCOLA", "LIVRO", "MESA", "CADEIRA",
-  "JANELA", "PORTA", "CELULAR", "COMPUTADOR", "TECLADO",
-  "MOUSE", "CADERNO", "CANETA", "LAPIS", "MOCHILA",
-  "BOLA", "FUTEBOL", "BASQUETE", "VOLEI", "NATACAO",
-  "CORRIDA", "BICICLETA", "PATINS", "TENIS", "XADREZ",
-  "MAÇA", "BANANA", "LARANJA", "MORANGO", "ABACAXI",
-  "MELANCIA", "UVA", "PERA", "MANGA", "PESSEGO",
-  "CEREJA", "LIMAO", "MELAO", "COCO", "GOIABA",
-  "CARRO", "AVIAO", "NAVIO", "TREM", "ONIBUS",
-  "BICICLETA", "MOTO", "CAMINHAO", "BARCO", "FOGUETE",
-  "SOL", "LUA", "ESTRELA", "PLANETA", "TERRA",
-  "MARTE", "SATURNO", "COMETA", "GALAXIA", "ESPACO",
-  "AMOR", "AMIZADE", "ALEGRIA", "FELICIDADE", "RESPEITO",
-  "CORAGEM", "CARINHO", "ESPERANCA", "PAZ", "BONDADE",
-  "VERDE", "AZUL", "AMARELO", "VERMELHO", "ROXO",
-  "LARANJA", "BRANCO", "PRETO", "ROSA", "CINZA",
-  "PRAIA", "MONTANHA", "FLORESTA", "RIO", "LAGO",
-  "CACHOEIRA", "JARDIM", "ARVORE", "FLORES", "NUVEM",
-  "CHUVA", "VENTO", "TROVAO", "NEVE", "ARCOIRIS"
-];
+let dicionario = new Set();
+let palavrasDoJogo = [];
+let palavraSecreta = "";
+let tentativas = 0;
+let terminou = false;
+let carregado = false;
 
-let grade = [];
-let palavras = [];
-let selecionada = null;
-let encontrados = new Set();
-let pontos = 0;
-
-const direcoes = [
-  [0, 1],
-  [1, 0],
-  [1, 1],
-  [-1, 1],
-  [0, -1],
-  [-1, 0],
-  [-1, -1],
-  [1, -1]
-];
-
-const elementoGrade = document.getElementById("grade");
-const elementoPalavras = document.getElementById("palavras");
-const elementoPontos = document.getElementById("pontos");
-const elementoMensagem = document.getElementById("mensagem");
-const botaoNovoJogo = document.getElementById("novoJogo");
-
-function normalizar(palavra) {
-  return palavra.normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
+function normalizar(texto) {
+    return texto
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .trim();
 }
 
-function sortearPalavras(quantidade) {
-  const unicas = [
-    ...new Set(bancoPalavras.map(normalizar))
-  ].filter(p => p.length <= tamanho);
+async function carregarDicionario() {
+    try {
+        mensagem.textContent = "Carregando dicionário...";
 
-  for (let i = unicas.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [unicas[i], unicas[j]] = [unicas[j], unicas[i]];
-  }
+        entrada.disabled = true;
+        enviar.disabled = true;
+        novoJogo.disabled = true;
 
-  return unicas.slice(0, quantidade);
-}
+        const url =
+            "https://raw.githubusercontent.com/pythonprobr/palavras/master/palavras.txt";
 
-function criarGrade() {
-  grade = Array.from(
-    { length: tamanho },
-    () => Array(tamanho).fill("")
-  );
+        const resposta = await fetch(url);
 
-  palavras = [];
-  encontrados = new Set();
-  pontos = 0;
-  selecionada = null;
-
-  const sorteadas = sortearPalavras(20);
-
-  for (const palavra of sorteadas) {
-    let colocada = false;
-
-    for (let tentativa = 0; tentativa < 1000; tentativa++) {
-      const [dr, dc] =
-        direcoes[Math.floor(Math.random() * direcoes.length)];
-
-      const r = Math.floor(Math.random() * tamanho);
-      const c = Math.floor(Math.random() * tamanho);
-
-      const fimR = r + dr * (palavra.length - 1);
-      const fimC = c + dc * (palavra.length - 1);
-
-      if (
-        fimR < 0 || fimR >= tamanho ||
-        fimC < 0 || fimC >= tamanho
-      ) {
-        continue;
-      }
-
-      let pode = true;
-
-      for (let i = 0; i < palavra.length; i++) {
-        const letra = grade[r + dr * i][c + dc * i];
-
-        if (letra !== "" && letra !== palavra[i]) {
-          pode = false;
-          break;
+        if (!resposta.ok) {
+            throw new Error("Falha ao baixar o dicionário.");
         }
-      }
 
-      if (!pode) continue;
+        const texto = await resposta.text();
 
-      const celulas = [];
+        const palavras = texto
+            .split(/\r?\n/)
+            .map(normalizar)
+            .filter(palavra => /^[A-Z]{5}$/.test(palavra));
 
-      for (let i = 0; i < palavra.length; i++) {
-        const nr = r + dr * i;
-        const nc = c + dc * i;
+        dicionario = new Set(palavras);
+        palavrasDoJogo = [...dicionario];
 
-        grade[nr][nc] = palavra[i];
-        celulas.push(`${nr}-${nc}`);
-      }
-
-      palavras.push({ palavra, celulas });
-      colocada = true;
-      break;
-    }
-
-    if (!colocada) continue;
-  }
-
-  const alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-  for (let r = 0; r < tamanho; r++) {
-    for (let c = 0; c < tamanho; c++) {
-      if (!grade[r][c]) {
-        grade[r][c] =
-          alfabeto[Math.floor(Math.random() * alfabeto.length)];
-      }
-    }
-  }
-}
-
-function desenharGrade() {
-  elementoGrade.innerHTML = "";
-  elementoGrade.style.gridTemplateColumns =
-    `repeat(${tamanho}, minmax(0, 1fr))`;
-
-  for (let r = 0; r < tamanho; r++) {
-    for (let c = 0; c < tamanho; c++) {
-      const celula = document.createElement("div");
-
-      celula.className = "letra";
-      celula.textContent = grade[r][c];
-      celula.dataset.pos = `${r}-${c}`;
-      celula.tabIndex = 0;
-      celula.setAttribute("role", "button");
-      celula.setAttribute(
-        "aria-label",
-        `Letra ${grade[r][c]}, linha ${r + 1}, coluna ${c + 1}`
-      );
-
-      celula.addEventListener("click", () => {
-        clicarLetra(r, c);
-      });
-
-      celula.addEventListener("keydown", evento => {
-        if (evento.key === "Enter" || evento.key === " ") {
-          evento.preventDefault();
-          clicarLetra(r, c);
+        if (palavrasDoJogo.length === 0) {
+            throw new Error("O dicionário está vazio.");
         }
-      });
 
-      elementoGrade.appendChild(celula);
+        carregado = true;
+        novoJogo.disabled = false;
+
+        iniciarJogo();
+    } catch (erro) {
+        console.error(erro);
+
+        mensagem.textContent =
+            "Não foi possível carregar o dicionário. Confira a internet e tente abrir pelo Live Server.";
     }
-  }
-
-  desenharPalavras();
-  atualizarPontos();
 }
 
-function desenharPalavras() {
-  elementoPalavras.innerHTML = "";
+function iniciarJogo() {
+    if (!carregado) return;
 
-  palavras.forEach(({ palavra }) => {
-    const item = document.createElement("span");
+    palavraSecreta =
+        palavrasDoJogo[
+            Math.floor(Math.random() * palavrasDoJogo.length)
+        ];
 
-    item.className = "palavra";
-    item.id = `palavra-${palavra}`;
-    item.textContent = palavra;
+    tentativas = 0;
+    terminou = false;
+    tabuleiro.innerHTML = "";
 
-    elementoPalavras.appendChild(item);
-  });
-}
+    for (let i = 0; i < maxTentativas; i++) {
+        const linha = document.createElement("div");
+        linha.className = "linha";
 
-function clicarLetra(r, c) {
-  const celula = document.querySelector(
-    `[data-pos="${r}-${c}"]`
-  );
+        for (let j = 0; j < 5; j++) {
+            const letra = document.createElement("div");
+            letra.className = "letra";
+            linha.appendChild(letra);
+        }
 
-  if (!celula || celula.classList.contains("encontrada")) {
-    return;
-  }
-
-  if (!selecionada) {
-    selecionada = { r, c };
-    celula.classList.add("selecionada");
-
-    elementoMensagem.textContent =
-      "Clique na última letra da palavra.";
-
-    return;
-  }
-
-  const inicio = selecionada;
-  const fim = { r, c };
-  const caminho = obterCaminho(inicio, fim);
-
-  document.querySelectorAll(".selecionada").forEach(el => {
-    el.classList.remove("selecionada");
-  });
-
-  selecionada = null;
-
-  if (!caminho) {
-    elementoMensagem.textContent =
-      "Escolha uma linha reta horizontal, vertical ou diagonal.";
-    return;
-  }
-
-  const formada = caminho.map(pos => {
-    const [linha, coluna] = pos.split("-").map(Number);
-    return grade[linha][coluna];
-  }).join("");
-
-  const invertida = formada.split("").reverse().join("");
-
-  const encontrada = palavras.find(item =>
-    !encontrados.has(item.palavra) &&
-    (
-      item.palavra === formada ||
-      item.palavra === invertida
-    )
-  );
-
-  if (!encontrada) {
-    elementoMensagem.textContent =
-      "Palavra não encontrada. Tente novamente!";
-    return;
-  }
-
-  encontrados.add(encontrada.palavra);
-  pontos += 10;
-
-  encontrada.celulas.forEach(pos => {
-    const el = document.querySelector(`[data-pos="${pos}"]`);
-
-    if (el) {
-      el.classList.add("encontrada");
+        tabuleiro.appendChild(linha);
     }
-  });
 
-  const itemPalavra = document.getElementById(
-    `palavra-${encontrada.palavra}`
-  );
+    entrada.value = "";
+    entrada.disabled = false;
+    enviar.disabled = false;
 
-  if (itemPalavra) {
-    itemPalavra.classList.add("encontrada");
-  }
-
-  elementoMensagem.textContent =
-    `Muito bem! Você encontrou ${encontrada.palavra}! 🎉`;
-
-  atualizarPontos();
-
-  if (encontrados.size === palavras.length) {
-    elementoMensagem.textContent =
-      "🏆 Parabéns! Você encontrou todas as palavras!";
-  }
+    mensagem.textContent = "Boa sorte!";
+    entrada.focus();
 }
 
-function obterCaminho(inicio, fim) {
-  const dr = fim.r - inicio.r;
-  const dc = fim.c - inicio.c;
+function verificarPalavra(palpite) {
+    const resposta = palavraSecreta.split("");
+    const letras = palpite.split("");
+    const resultado = Array(5).fill("errada");
 
-  if (dr === 0 && dc === 0) return null;
+    for (let i = 0; i < 5; i++) {
+        if (letras[i] === resposta[i]) {
+            resultado[i] = "correta";
+            resposta[i] = null;
+            letras[i] = null;
+        }
+    }
 
-  if (
-    dr !== 0 &&
-    dc !== 0 &&
-    Math.abs(dr) !== Math.abs(dc)
-  ) {
-    return null;
-  }
+    for (let i = 0; i < 5; i++) {
+        if (letras[i] === null) continue;
 
-  const passoR = Math.sign(dr);
-  const passoC = Math.sign(dc);
-  const comprimento = Math.max(
-    Math.abs(dr),
-    Math.abs(dc)
-  );
+        const posicao = resposta.indexOf(letras[i]);
 
-  const caminho = [];
+        if (posicao !== -1) {
+            resultado[i] = "presente";
+            resposta[posicao] = null;
+        }
+    }
 
-  for (let i = 0; i <= comprimento; i++) {
-    caminho.push(
-      `${inicio.r + passoR * i}-${inicio.c + passoC * i}`
-    );
-  }
-
-  return caminho;
+    return resultado;
 }
 
-function atualizarPontos() {
-  elementoPontos.textContent = pontos;
+function jogar(evento) {
+    evento.preventDefault();
+
+    if (terminou || !carregado) return;
+
+    const palpite = normalizar(entrada.value);
+
+    if (!/^[A-Z]{5}$/.test(palpite)) {
+        mensagem.textContent =
+            "Digite uma palavra com exatamente 5 letras.";
+        return;
+    }
+
+    if (!dicionario.has(palpite)) {
+        mensagem.textContent =
+            "Essa palavra não está no dicionário. Tente outra!";
+        entrada.select();
+        return;
+    }
+
+    const linhas = tabuleiro.querySelectorAll(".linha");
+    const celulas = linhas[tentativas].querySelectorAll(".letra");
+    const cores = verificarPalavra(palpite);
+
+    for (let i = 0; i < 5; i++) {
+        celulas[i].textContent = palpite[i];
+        celulas[i].classList.add(cores[i]);
+    }
+
+    tentativas++;
+    entrada.value = "";
+
+    if (palpite === palavraSecreta) {
+        mensagem.textContent =
+            `Parabéns! Você acertou em ${tentativas} tentativa(s)!`;
+
+        terminarJogo();
+        return;
+    }
+
+    if (tentativas === maxTentativas) {
+        mensagem.textContent =
+            `Fim de jogo! A palavra era ${palavraSecreta}.`;
+
+        terminarJogo();
+        return;
+    }
+
+    mensagem.textContent =
+        `Tentativa ${tentativas} de ${maxTentativas}. Tente novamente!`;
+
+    entrada.focus();
 }
 
-function novoJogo() {
-  elementoMensagem.textContent = "Boa sorte!";
-
-  criarGrade();
-  desenharGrade();
+function terminarJogo() {
+    terminou = true;
+    entrada.disabled = true;
+    enviar.disabled = true;
 }
 
-botaoNovoJogo.addEventListener("click", novoJogo);
+formulario.addEventListener("submit", jogar);
+novoJogo.addEventListener("click", iniciarJogo);
 
-novoJogo();
+carregarDicionario();

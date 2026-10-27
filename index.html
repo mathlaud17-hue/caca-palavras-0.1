@@ -2,33 +2,48 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caça-Palavras</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adivinhe a Palavra</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
 </head>
 <body>
-  <main class="container">
-    <h1>🔎 Caça-Palavras</h1>
+    <main class="container">
+        <h1>Adivinhe a Palavra</h1>
+        <p class="descricao">
+            Descubra a palavra de 5 letras em até 6 tentativas!
+        </p>
 
-    <p class="instrucoes">
-      Encontre as palavras escondidas na grade!
-      Clique na primeira e na última letra de cada palavra.
-    </p>
+        <section class="legenda">
+            <p><span class="exemplo correta">A</span> Letra certa no lugar certo</p>
+            <p><span class="exemplo presente">B</span> Letra existe em outra posição</p>
+            <p><span class="exemplo errada">C</span> Letra não existe na palavra</p>
+        </section>
 
-    <h3>Palavras para encontrar:</h3>
-    <div class="palavras" id="palavras"></div>
+        <section id="tabuleiro" class="tabuleiro"></section>
 
-    <div id="grade"></div>
+        <form id="formulario">
+            <label for="entrada">Digite uma palavra:</label>
+            <input
+                id="entrada"
+                type="text"
+                maxlength="5"
+                placeholder="Ex.: PEDRA"
+                autocomplete="off"
+                autocapitalize="characters"
+                required
+            >
+            <button id="enviar" type="submit">Enviar</button>
+        </form>
 
-    <h3 class="pontuacao">
-      🏆 Pontuação: <span id="pontos">0</span>
-    </h3>
+        <p id="mensagem" role="status" aria-live="polite">
+            Carregando dicionário...
+        </p>
 
-    <p id="mensagem" aria-live="polite">Boa sorte!</p>
-
-    <button id="novoJogo" type="button">Novo jogo 🔄</button>
-  </main>
+        <button id="novoJogo" class="secundario" type="button" disabled>
+            Novo jogo
+        </button>
+    </main>
 </body>
 </html>
